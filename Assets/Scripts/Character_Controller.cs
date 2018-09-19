@@ -7,6 +7,9 @@ public class Character_Controller : MonoBehaviour
 {
     public GameObject[] roads;
     public GameObject[] buildings;
+    public GameObject[] obstacles;
+
+    private int[] latestTilemap = null;
 
     public GameObject latestBuilding;
     public GameObject latestRoad;
@@ -47,6 +50,8 @@ public class Character_Controller : MonoBehaviour
 
     public enum Positions { Left, Center, Right }
     Positions currentPosition;
+
+    Positions latestTilemapPos;
 
     public Vector3 root;
 
@@ -204,6 +209,7 @@ public class Character_Controller : MonoBehaviour
             latestRoad = Instantiate(roads[0], NewLocation(currentDirection), Quaternion.Euler(road1_Right_Rotation));
         }
         roadQueue.Enqueue(latestRoad);
+        SpawnObstacles(latestRoad);
         SpawnBuildings(latestRoad);
         count++;
         straightCount++;
@@ -372,6 +378,172 @@ public class Character_Controller : MonoBehaviour
                 buildingCount++;
             }
         }
+    }
+
+    public void SpawnObstacles(GameObject road)
+    {
+        int[] tilemap = CreateTilemap();
+
+        int rowSize = 3;
+        int currentRow = 0;
+
+        if (currentDirection == Directions.Front)
+        {
+            Vector3 tileStart = new Vector3(road.GetComponentInChildren<MeshRenderer>().bounds.center.x - 3.6f, road.GetComponentInChildren<MeshRenderer>().bounds.center.y, road.GetComponentInChildren<MeshRenderer>().bounds.center.z + 7.3f);
+            for (int i = 0; i < tilemap.Length; i++)
+            {
+                if (i % rowSize == 0 && i > 0)
+                {
+                    currentRow++;
+                }
+                Instantiate(obstacles[tilemap[i]], new Vector3(tileStart.x + (3.6f * (i % rowSize)), tileStart.y, tileStart.z - (currentRow * 7.3f)), Quaternion.Euler(road1_Front_Rotation));
+            }
+        }
+        else if(currentDirection == Directions.Left)
+        {
+            Vector3 tileStart = new Vector3(road.GetComponentInChildren<MeshRenderer>().bounds.center.x - 7.3f, road.GetComponentInChildren<MeshRenderer>().bounds.center.y, road.GetComponentInChildren<MeshRenderer>().bounds.center.z - 3.6f);
+            for (int i = 0; i < tilemap.Length; i++)
+            {
+                if (i % rowSize == 0 && i > 0)
+                {
+                    currentRow++;
+                }
+                Instantiate(obstacles[tilemap[i]], new Vector3(tileStart.x + (currentRow * 7.3f), tileStart.y, tileStart.z + (3.6f * (i % rowSize))), Quaternion.Euler(road1_Left_Rotation));
+            }
+        }
+        else if (currentDirection == Directions.Back)
+        {
+            Vector3 tileStart = new Vector3(road.GetComponentInChildren<MeshRenderer>().bounds.center.x + 3.6f, road.GetComponentInChildren<MeshRenderer>().bounds.center.y, road.GetComponentInChildren<MeshRenderer>().bounds.center.z - 7.3f);
+            for (int i = 0; i < tilemap.Length; i++)
+            {
+                if (i % rowSize == 0 && i > 0)
+                {
+                    currentRow++;
+                }
+                Instantiate(obstacles[tilemap[i]], new Vector3(tileStart.x - (3.6f * (i % rowSize)), tileStart.y, tileStart.z + (currentRow * 7.3f)), Quaternion.Euler(road1_Front_Rotation));
+            }
+        }
+        else if (currentDirection == Directions.Right)
+        {
+            Vector3 tileStart = new Vector3(road.GetComponentInChildren<MeshRenderer>().bounds.center.x + 7.3f, road.GetComponentInChildren<MeshRenderer>().bounds.center.y, road.GetComponentInChildren<MeshRenderer>().bounds.center.z + 3.6f);
+            for (int i = 0; i < tilemap.Length; i++)
+            {
+                if (i % rowSize == 0 && i > 0)
+                {
+                    currentRow++;
+                }
+                Instantiate(obstacles[tilemap[i]], new Vector3(tileStart.x - (currentRow * 7.3f), tileStart.y, tileStart.z - (3.6f * (i % rowSize))), Quaternion.Euler(road1_Left_Rotation));
+            }
+        }
+    }
+
+    public int[] CreateTilemap()
+    {
+        int[] tilemap;
+        int maxObstacles = 3;
+        int spawnedObstacles = 0;
+
+        Positions coinPosition = Positions.Center;
+
+        if (latestTilemap == null)
+        {
+            tilemap = new int[] { 0, 1, 0,
+                                  0, 1, 0,
+                                  0, 1, 0 };
+            latestTilemapPos = Positions.Center;
+        }
+        else
+        {
+
+            if (latestTilemapPos == Positions.Left)
+            {
+                if (Chance(50))
+                {
+                    coinPosition = Positions.Left;
+                }
+                else
+                {
+                    coinPosition = Positions.Center;
+                }
+            }
+            else if (latestTilemapPos == Positions.Center)
+            {
+                if (Chance(50))
+                {
+                    coinPosition = Positions.Center;
+                }
+                else
+                {
+                    if(Chance(50))
+                    {
+                        coinPosition = Positions.Left;
+                    }
+                    else
+                    {
+                        coinPosition = Positions.Right;
+                    }
+                }
+            }
+            else if (latestTilemapPos == Positions.Right)
+            {
+                if (Chance(50))
+                {
+                    coinPosition = Positions.Center;
+                }
+                else
+                {
+                    coinPosition = Positions.Right;
+                }
+            }
+
+            tilemap = new int[9];
+            for (int i = 0; i < tilemap.Length; i++)
+            {
+                Debug.Log(latestTilemapPos);
+                if (i == 0 && coinPosition == Positions.Left || i == 3 && coinPosition == Positions.Left || i == 6 && coinPosition == Positions.Left)
+                {
+                    tilemap[i] = 1;
+                }
+                else if (i == 1 && coinPosition == Positions.Center || i == 4 && coinPosition == Positions.Center || i == 7 && coinPosition == Positions.Center)
+                {
+                    tilemap[i] = 1;
+                }
+                else if (i == 2 && coinPosition == Positions.Right || i == 5 && coinPosition == Positions.Right || i == 8 && coinPosition == Positions.Right)
+                {
+                    tilemap[i] = 1;
+                }
+                else
+                {
+                    if (spawnedObstacles < maxObstacles)
+                    {
+                        int rnd = Random.Range(0, 10);
+
+                        if(rnd < 4)
+                        {
+                            tilemap[i] = 2;
+                        }
+                    }
+                }
+            }
+        }
+
+
+        latestTilemapPos = Positions.Center;
+        latestTilemap = tilemap;
+
+        return tilemap;
+    }
+
+    public bool Chance(int percent)
+    {
+        bool chance = false;
+
+        int rnd = Random.Range(0, 101);
+        if(rnd < percent)
+        {
+           chance = true;
+        }
+        return chance;
     }
 
     public Vector3 NewLocation(Directions dir)
